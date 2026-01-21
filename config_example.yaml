@@ -4,6 +4,10 @@
 authorName: "Your Name"
 authorEmail: "youremail@example.com"
 
+# Language for commit messages and code reviews. Valid options: "english", "chinese", etc.
+# Overridden by --language flag.
+language: "english"
+
 # Which AI provider to use. Valid options: "openai", "google", "anthropic", "deepseek", "phind", "ollama", "openrouter"
 provider: "phind"
 

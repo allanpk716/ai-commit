@@ -48,6 +48,7 @@ type Config struct {
 	SemanticRelease  bool               `yaml:"semanticRelease,omitempty"`
 	InteractiveSplit bool               `yaml:"interactiveSplit,omitempty"`
 	EnableEmoji      bool               `yaml:"enableEmoji,omitempty"`
+	Language         string             `yaml:"language,omitempty"`
 
     Provider    string             `yaml:"provider,omitempty"`
     CommitTypes []CommitTypeConfig `yaml:"commitTypes,omitempty"`
@@ -86,6 +87,7 @@ func LoadOrCreateConfig() (*Config, error) {
     if _, err := os.Stat(configPath); os.IsNotExist(err) {
         defaultCfg := &Config{
             Provider:      DefaultProvider,
+            Language:      "english",
             AuthorName:    DefaultAuthorName,
             AuthorEmail:   DefaultAuthorEmail,
             LockFiles:     []string{"go.mod", "go.sum"},

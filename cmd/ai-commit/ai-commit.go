@@ -72,7 +72,7 @@ var reviewCmd = &cobra.Command{
 }
 
 func init() {
-    rootCmd.PersistentFlags().StringVar(&languageFlag, "language", "english", "Language for commit message/review")
+    rootCmd.PersistentFlags().StringVar(&languageFlag, "language", "", "Language for commit message/review")
     rootCmd.Flags().StringVar(&apiKeyFlag, "apiKey", "", "API key for the selected provider (or env ${PROVIDER}_API_KEY)")
     rootCmd.Flags().StringVar(&baseURLFlag, "baseURL", "", "Base URL for the selected provider (or env ${PROVIDER}_BASE_URL)")
     rootCmd.Flags().StringVar(&commitTypeFlag, "commit-type", "", "Commit type (e.g., feat, fix)")
@@ -118,6 +118,10 @@ func setupAIEnvironment() (context.Context, context.CancelFunc, *config.Config, 
 		return nil, nil, nil, nil, fmt.Errorf("failed to load config: %w", err)
 	}
 	cm := config.NewConfigManager(cfg)
+	// Register language flag for merging
+	if languageFlag != "" {
+		cm.RegisterFlag("language", languageFlag)
+	}
 	mergedCfg := cm.MergeConfiguration()
 
 	if mergedCfg.Provider == "" {
@@ -239,6 +243,12 @@ func runAICommit(cmd *cobra.Command, args []string) {
 	}
 	defer cancel()
 
+	// Use language from merged config (CLI flag > config file > default "english")
+	language := cfg.Language
+	if language == "" {
+		language = "english"
+	}
+
 	if interactiveSplitFlag {
 		runInteractiveSplit(ctx, aiClient, semanticReleaseFlag, manualSemverFlag)
 		return
@@ -260,7 +270,7 @@ func runAICommit(cmd *cobra.Command, args []string) {
 		return
 	}
 
-    promptText := prompt.BuildCommitPrompt(diff, languageFlag, commitTypeFlag, "", cfg.PromptTemplate)
+    promptText := prompt.BuildCommitPrompt(diff, language, commitTypeFlag, "", cfg.PromptTemplate)
     if cfg.Limits.Prompt.Enabled && cfg.Limits.Prompt.MaxChars > 0 {
         if len(promptText) > cfg.Limits.Prompt.MaxChars {
             // hard truncate with marker
@@ -285,7 +295,7 @@ func runAICommit(cmd *cobra.Command, args []string) {
 
 	var styleReviewSuggestions string
     if reviewMessageFlag && commitMsg != "" {
-        suggestions, errReview := enforceCommitMessageStyle(ctx, aiClient, commitMsg, languageFlag, cfg.PromptTemplate)
+        suggestions, errReview := enforceCommitMessageStyle(ctx, aiClient, commitMsg, language, cfg.PromptTemplate)
         if errReview != nil {
             log.Error().Err(errReview).Msg("Commit message style enforcement failed")
             os.Exit(1)
@@ -314,7 +324,7 @@ func runAICommit(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	runInteractiveUI(ctx, commitMsg, diff, promptText, styleReviewSuggestions, cfg.EnableEmoji, aiClient)
+	runInteractiveUI(ctx, commitMsg, diff, promptText, styleReviewSuggestions, cfg.EnableEmoji, language, aiClient)
 }
 
 func runAICodeReview(cmd *cobra.Command, args []string) {
@@ -324,6 +334,12 @@ func runAICodeReview(cmd *cobra.Command, args []string) {
 		return
 	}
 	defer cancel()
+
+	// Use language from merged config (CLI flag > config file > default "english")
+	language := cfg.Language
+	if language == "" {
+		language = "english"
+	}
 
 	diff, err := git.GetGitDiffIgnoringMoves(ctx)
 	if err != nil {
@@ -341,7 +357,7 @@ func runAICodeReview(cmd *cobra.Command, args []string) {
             diff = summarized
         }
     }
-    reviewPrompt := prompt.BuildCodeReviewPrompt(diff, languageFlag, cfg.PromptTemplate)
+    reviewPrompt := prompt.BuildCodeReviewPrompt(diff, language, cfg.PromptTemplate)
     if cfg.Limits.Prompt.Enabled && cfg.Limits.Prompt.MaxChars > 0 {
         if len(reviewPrompt) > cfg.Limits.Prompt.MaxChars {
             limit := cfg.Limits.Prompt.MaxChars
@@ -381,7 +397,13 @@ func runSummarizeCommand(setupAIEnvironment func() (context.Context, context.Can
 	}
 	defer cancel()
 
-	if err := summarizer.SummarizeCommits(ctx, aiClient, cfg, languageFlag); err != nil {
+	// Use language from merged config (CLI flag > config file > default "english")
+	language := cfg.Language
+	if language == "" {
+		language = "english"
+	}
+
+	if err := summarizer.SummarizeCommits(ctx, aiClient, cfg, language); err != nil {
 		log.Fatal().Err(err).Msg("Failed to summarize commits")
 	}
 }
@@ -393,6 +415,7 @@ func runInteractiveUI(
     promptText string,
     styleReviewSuggestions string,
     enableEmoji bool,
+    language string,
     aiClient ai.AIClient,
 ) {
     // Start with streaming if the client supports it and we have a prompt
@@ -406,7 +429,7 @@ func runInteractiveUI(
     uiModel := ui.NewUIModel(
         commitMsg,
         diff,
-        languageFlag,
+        language,
         promptText,
         commitTypeFlag,
         templateFlag,
