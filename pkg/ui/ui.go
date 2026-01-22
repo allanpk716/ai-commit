@@ -182,6 +182,10 @@ type Model struct {
 	// Terminal dimensions
 	width  int
 	height int
+
+	// For refreshing diff during regeneration
+	ctx       context.Context
+	lockFiles []string
 }
 
 // NewUIModel creates a new TUI model.
@@ -191,6 +195,8 @@ func NewUIModel(
 	enableEmoji bool,
 	client ai.AIClient,
 	startStreaming bool,
+	ctx context.Context,
+	lockFiles []string,
 ) Model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -234,13 +240,15 @@ func NewUIModel(
 		textarea:      ta,
 		help:          help.New(),
 
-		styleReview:   styleReviewSuggestions,
-		startStreaming: startStreaming,
-		errMsg:         "",
-		progValue:      0,
-		dotFrame:       0,
-		revealActive:   false,
-		displayedMsg:   commitMsg,
+		styleReview:     styleReviewSuggestions,
+		startStreaming:  startStreaming,
+		errMsg:          "",
+		progValue:       0,
+		dotFrame:        0,
+		revealActive:    false,
+		displayedMsg:    commitMsg,
+		ctx:             ctx,
+		lockFiles:       lockFiles,
 	}
 }
 
@@ -303,6 +311,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else if m.state == stateEditingPrompt {
 					userPrompt := m.textarea.Value()
 					m.state = stateGenerating
+					m.commitMsg = ""
 					m.spinner = spinner.New()
 					m.spinner.Spinner = spinner.Dot
 					m.regenCount++
@@ -340,7 +349,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.state = stateResult
 					return m, autoQuitCmd()
 				}
+				// Refresh diff to get latest staged changes
+				log.Debug().Str("old_diff_length", fmt.Sprintf("%d", len(m.diff))).Msg("Before refreshDiff")
+				if err := m.refreshDiff(); err != nil {
+					m.errMsg = err.Error()
+					return m, nil
+				}
+				log.Debug().Str("new_diff_length", fmt.Sprintf("%d", len(m.diff))).Str("new_prompt_length", fmt.Sprintf("%d", len(m.prompt))).Msg("After refreshDiff")
 				m.state = stateGenerating
+				m.commitMsg = ""
 				m.spinner = spinner.New()
 				m.spinner.Spinner = spinner.Dot
 				m.regenCount++
@@ -386,6 +403,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				m.commitType = m.commitTypes[m.selectedIndex]
 				m.state = stateGenerating
+				m.commitMsg = ""
 				m.spinner = spinner.New()
 				m.spinner.Spinner = spinner.Dot
 				m.regenCount++
@@ -695,14 +713,18 @@ func commitCmd(commitMsg string) tea.Cmd {
 // If the client supports streaming, it wires channels and returns streamStartedMsg.
 func regenCmd(client ai.AIClient, prompt, commitType, tmpl string, enableEmoji bool) tea.Cmd {
 	return func() tea.Msg {
+		log.Debug().Str("prompt_length", fmt.Sprintf("%d", len(prompt))).Msg("regenCmd: using prompt")
 		// Try streaming if available
 		if sc, ok := client.(ai.StreamingAIClient); ok {
+			// Create a context with timeout for streaming
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			deltaCh := make(chan string, 64)
 			doneCh := make(chan error, 1)
 			go func() {
-				_, err := sc.StreamCommitMessage(context.Background(), prompt, func(d string) {
+				_, err := sc.StreamCommitMessage(ctx, prompt, func(d string) {
 					deltaCh <- d
 				})
+				cancel()
 				close(deltaCh)
 				doneCh <- err
 				close(doneCh)
@@ -718,10 +740,13 @@ func regenCmd(client ai.AIClient, prompt, commitType, tmpl string, enableEmoji b
 func startStreamCmd(client ai.AIClient, prompt string) tea.Cmd {
 	return func() tea.Msg {
 		if sc, ok := client.(ai.StreamingAIClient); ok {
+			// Create a context with timeout for streaming
+			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			deltaCh := make(chan string, 64)
 			doneCh := make(chan error, 1)
 			go func() {
-				_, err := sc.StreamCommitMessage(context.Background(), prompt, func(d string) { deltaCh <- d })
+				_, err := sc.StreamCommitMessage(ctx, prompt, func(d string) { deltaCh <- d })
+				cancel()
 				close(deltaCh)
 				doneCh <- err
 				close(doneCh)
@@ -827,6 +852,31 @@ func (m Model) GetAIClient() ai.AIClient {
 // GetCommitMsg returns the commit message stored in the UI model.
 func (m Model) GetCommitMsg() string {
 	return m.commitMsg
+}
+
+// refreshDiff re-fetches the latest git diff and updates the prompt.
+func (m *Model) refreshDiff() error {
+	// Create a new context with timeout for getting git diff
+	// This avoids using the shared context which may expire
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Use GetStagedDiff to get only staged changes (via git diff --cached)
+	diff, err := git.GetStagedDiff(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to refresh git diff: %w", err)
+	}
+
+	// Apply lock file filtering
+	diff = git.FilterLockFiles(diff, m.lockFiles)
+
+	log.Debug().Str("refreshed_diff_length", fmt.Sprintf("%d", len(diff))).Msg("refreshDiff: updated diff")
+
+	// Update model
+	m.diff = diff
+	m.prompt = prompt.BuildCommitPrompt(m.diff, m.language, m.commitType, "", "")
+	log.Debug().Str("new_prompt_length", fmt.Sprintf("%d", len(m.prompt))).Msg("refreshDiff: updated prompt")
+	return nil
 }
 
 // --- helpers -----------------------------------------------------------------

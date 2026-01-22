@@ -587,3 +587,15 @@ Diff:
 	}
 	return nil
 }
+
+// GetStagedDiff returns the diff of staged changes using git diff --cached.
+// This is more reliable than GetGitDiffIgnoringMoves for getting only staged changes.
+func GetStagedDiff(ctx context.Context) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "diff", "--cached")
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to get staged diff: %w", err)
+	}
+	return stdout.String(), nil
+}

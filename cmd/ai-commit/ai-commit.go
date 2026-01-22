@@ -17,13 +17,13 @@ import (
 	"github.com/renatogalera/ai-commit/pkg/config"
 	"github.com/renatogalera/ai-commit/pkg/git"
 	"github.com/renatogalera/ai-commit/pkg/prompt"
-    _ "github.com/renatogalera/ai-commit/pkg/provider/anthropic"
-    _ "github.com/renatogalera/ai-commit/pkg/provider/deepseek"
-    _ "github.com/renatogalera/ai-commit/pkg/provider/google"
-    _ "github.com/renatogalera/ai-commit/pkg/provider/ollama"
-    _ "github.com/renatogalera/ai-commit/pkg/provider/openai"
-    _ "github.com/renatogalera/ai-commit/pkg/provider/openrouter"
-    _ "github.com/renatogalera/ai-commit/pkg/provider/phind"
+	_ "github.com/renatogalera/ai-commit/pkg/provider/anthropic"
+	_ "github.com/renatogalera/ai-commit/pkg/provider/deepseek"
+	_ "github.com/renatogalera/ai-commit/pkg/provider/google"
+	_ "github.com/renatogalera/ai-commit/pkg/provider/ollama"
+	_ "github.com/renatogalera/ai-commit/pkg/provider/openai"
+	_ "github.com/renatogalera/ai-commit/pkg/provider/openrouter"
+	_ "github.com/renatogalera/ai-commit/pkg/provider/phind"
 	"github.com/renatogalera/ai-commit/pkg/provider/registry"
 	"github.com/renatogalera/ai-commit/pkg/summarizer"
 	"github.com/renatogalera/ai-commit/pkg/template"
@@ -39,11 +39,11 @@ var (
 )
 
 var (
-    apiKeyFlag           string
-    baseURLFlag          string
-    commitTypeFlag       string
-    templateFlag         string
-    languageFlag         string
+	apiKeyFlag           string
+	baseURLFlag          string
+	commitTypeFlag       string
+	templateFlag         string
+	languageFlag         string
 	forceFlag            bool
 	semanticReleaseFlag  bool
 	interactiveSplitFlag bool
@@ -61,7 +61,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-    rootCmd.Run = runAICommit
+	rootCmd.Run = runAICommit
 }
 
 var reviewCmd = &cobra.Command{
@@ -72,19 +72,19 @@ var reviewCmd = &cobra.Command{
 }
 
 func init() {
-    rootCmd.PersistentFlags().StringVar(&languageFlag, "language", "", "Language for commit message/review")
-    rootCmd.Flags().StringVar(&apiKeyFlag, "apiKey", "", "API key for the selected provider (or env ${PROVIDER}_API_KEY)")
-    rootCmd.Flags().StringVar(&baseURLFlag, "baseURL", "", "Base URL for the selected provider (or env ${PROVIDER}_BASE_URL)")
-    rootCmd.Flags().StringVar(&commitTypeFlag, "commit-type", "", "Commit type (e.g., feat, fix)")
-    rootCmd.Flags().StringVar(&templateFlag, "template", "", "Commit message template")
-    rootCmd.Flags().BoolVar(&forceFlag, "force", false, "Bypass interactive UI and commit directly")
-    rootCmd.Flags().BoolVar(&semanticReleaseFlag, "semantic-release", false, "Perform semantic release")
-    rootCmd.Flags().BoolVar(&interactiveSplitFlag, "interactive-split", false, "Launch interactive commit splitting")
-    rootCmd.Flags().BoolVar(&emojiFlag, "emoji", false, "Include emoji in commit message")
-    rootCmd.Flags().BoolVar(&manualSemverFlag, "manual-semver", false, "Manually select semantic version bump")
-    rootCmd.Flags().StringVar(&providerFlag, "provider", "", "AI provider: openai, google, anthropic, deepseek, phind, ollama, openrouter")
-    rootCmd.Flags().StringVar(&modelFlag, "model", "", "Sub-model for the chosen provider")
-    rootCmd.Flags().BoolVar(&reviewMessageFlag, "review-message", false, "Review and enforce commit message style using AI")
+	rootCmd.PersistentFlags().StringVar(&languageFlag, "language", "", "Language for commit message/review")
+	rootCmd.Flags().StringVar(&apiKeyFlag, "apiKey", "", "API key for the selected provider (or env ${PROVIDER}_API_KEY)")
+	rootCmd.Flags().StringVar(&baseURLFlag, "baseURL", "", "Base URL for the selected provider (or env ${PROVIDER}_BASE_URL)")
+	rootCmd.Flags().StringVar(&commitTypeFlag, "commit-type", "", "Commit type (e.g., feat, fix)")
+	rootCmd.Flags().StringVar(&templateFlag, "template", "", "Commit message template")
+	rootCmd.Flags().BoolVar(&forceFlag, "force", false, "Bypass interactive UI and commit directly")
+	rootCmd.Flags().BoolVar(&semanticReleaseFlag, "semantic-release", false, "Perform semantic release")
+	rootCmd.Flags().BoolVar(&interactiveSplitFlag, "interactive-split", false, "Launch interactive commit splitting")
+	rootCmd.Flags().BoolVar(&emojiFlag, "emoji", false, "Include emoji in commit message")
+	rootCmd.Flags().BoolVar(&manualSemverFlag, "manual-semver", false, "Manually select semantic version bump")
+	rootCmd.Flags().StringVar(&providerFlag, "provider", "", "AI provider: openai, google, anthropic, deepseek, phind, ollama, openrouter")
+	rootCmd.Flags().StringVar(&modelFlag, "model", "", "Sub-model for the chosen provider")
+	rootCmd.Flags().BoolVar(&reviewMessageFlag, "review-message", false, "Review and enforce commit message style using AI")
 
 	rootCmd.AddCommand(newSummarizeCmd(setupAIEnvironment))
 	rootCmd.AddCommand(reviewCmd)
@@ -127,9 +127,9 @@ func setupAIEnvironment() (context.Context, context.CancelFunc, *config.Config, 
 	if mergedCfg.Provider == "" {
 		mergedCfg.Provider = config.DefaultProvider
 	}
-    if !registry.Has(mergedCfg.Provider) {
-        return nil, nil, nil, nil, fmt.Errorf("invalid provider: %s", mergedCfg.Provider)
-    }
+	if !registry.Has(mergedCfg.Provider) {
+		return nil, nil, nil, nil, fmt.Errorf("invalid provider: %s", mergedCfg.Provider)
+	}
 	if err := mergedCfg.Validate(); err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("config validation failed: %w", err)
 	}
@@ -166,55 +166,59 @@ func initAIClient(ctx context.Context, cfg *config.Config) (ai.AIClient, error) 
 		return nil, fmt.Errorf("provider não suportado: %s", provider)
 	}
 
-    // Base settings from config
-    ps := cfg.GetProviderSettings(provider)
-    if def, ok := registry.GetDefaults(provider); ok {
-        if ps.Model == "" { ps.Model = def.Model }
-        if ps.BaseURL == "" { ps.BaseURL = def.BaseURL }
-    }
+	// Base settings from config
+	ps := cfg.GetProviderSettings(provider)
+	if def, ok := registry.GetDefaults(provider); ok {
+		if ps.Model == "" {
+			ps.Model = def.Model
+		}
+		if ps.BaseURL == "" {
+			ps.BaseURL = def.BaseURL
+		}
+	}
 
 	// Apply generic overrides
 	if modelFlag != "" {
 		ps.Model = modelFlag
 	}
-    if override := baseURLOverrideFor(provider); override != "" {
-        ps.BaseURL = override
-    }
-if key, err := apiKeyFor(provider, ps.APIKey); err == nil {
-    ps.APIKey = key
-} else if requiresAPIKey(provider) {
-    return nil, err
-} else {
-    // providers without mandatory keys (phind, ollama)
-    ps.APIKey = ""
-}
+	if override := baseURLOverrideFor(provider); override != "" {
+		ps.BaseURL = override
+	}
+	if key, err := apiKeyFor(provider, ps.APIKey); err == nil {
+		ps.APIKey = key
+	} else if requiresAPIKey(provider) {
+		return nil, err
+	} else {
+		// providers without mandatory keys (phind, ollama)
+		ps.APIKey = ""
+	}
 
-    factory, _ := registry.Get(provider)
-    return factory(ctx, provider, ps)
+	factory, _ := registry.Get(provider)
+	return factory(ctx, provider, ps)
 }
 
 func baseURLOverrideFor(provider string) string {
-    if strings.TrimSpace(baseURLFlag) != "" {
-        return baseURLFlag
-    }
-    env := strings.ToUpper(provider) + "_BASE_URL"
-    if v := strings.TrimSpace(os.Getenv(env)); v != "" {
-        return v
-    }
-    return ""
+	if strings.TrimSpace(baseURLFlag) != "" {
+		return baseURLFlag
+	}
+	env := strings.ToUpper(provider) + "_BASE_URL"
+	if v := strings.TrimSpace(os.Getenv(env)); v != "" {
+		return v
+	}
+	return ""
 }
 
 func apiKeyFor(provider, configVal string) (string, error) {
-    // Priority: flag > env > config value
-    env := strings.ToUpper(provider) + "_API_KEY"
-    return config.ResolveAPIKey(apiKeyFlag, env, configVal, provider)
+	// Priority: flag > env > config value
+	env := strings.ToUpper(provider) + "_API_KEY"
+	return config.ResolveAPIKey(apiKeyFlag, env, configVal, provider)
 }
 
 func requiresAPIKey(provider string) bool { return registry.RequiresAPIKey(provider) }
 
 func supportsStreaming(client ai.AIClient) bool {
-    _, ok := client.(ai.StreamingAIClient)
-    return ok
+	_, ok := client.(ai.StreamingAIClient)
+	return ok
 }
 
 func formatReviewOutput(title, content string) string {
@@ -254,54 +258,54 @@ func runAICommit(cmd *cobra.Command, args []string) {
 		return
 	}
 
-    diff, err := git.GetGitDiffIgnoringMoves(ctx)
-    if err != nil {
-        log.Fatal().Err(err).Msg("Failed to get Git diff (ignoring moves)")
-        return
-    }
-    diff = git.FilterLockFiles(diff, cfg.LockFiles)
-    if cfg.Limits.Diff.Enabled && cfg.Limits.Diff.MaxChars > 0 {
-        if summarized, did := aiClient.MaybeSummarizeDiff(diff, cfg.Limits.Diff.MaxChars); did {
-            diff = summarized
-        }
-    }
+	diff, err := git.GetStagedDiff(ctx)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to get staged diff")
+		return
+	}
+	diff = git.FilterLockFiles(diff, cfg.LockFiles)
+	if cfg.Limits.Diff.Enabled && cfg.Limits.Diff.MaxChars > 0 {
+		if summarized, did := aiClient.MaybeSummarizeDiff(diff, cfg.Limits.Diff.MaxChars); did {
+			diff = summarized
+		}
+	}
 	if strings.TrimSpace(diff) == "" {
 		fmt.Println("No staged changes after filtering lock files.")
 		return
 	}
 
-    promptText := prompt.BuildCommitPrompt(diff, language, commitTypeFlag, "", cfg.PromptTemplate)
-    if cfg.Limits.Prompt.Enabled && cfg.Limits.Prompt.MaxChars > 0 {
-        if len(promptText) > cfg.Limits.Prompt.MaxChars {
-            // hard truncate with marker
-            limit := cfg.Limits.Prompt.MaxChars
-            if limit > 3 {
-                limit -= 3
-            }
-            promptText = promptText[:limit] + "..."
-        }
-    }
-    var commitMsg string
-    if forceFlag || !supportsStreaming(aiClient) {
-        var genErr error
-        commitMsg, genErr = generateCommitMessage(ctx, aiClient, promptText, commitTypeFlag, templateFlag, cfg.EnableEmoji)
-        if genErr != nil {
-            log.Error().Err(genErr).Msg("Commit message generation error")
-            os.Exit(1)
-        }
-    } else {
-        commitMsg = ""
-    }
+	promptText := prompt.BuildCommitPrompt(diff, language, commitTypeFlag, "", cfg.PromptTemplate)
+	if cfg.Limits.Prompt.Enabled && cfg.Limits.Prompt.MaxChars > 0 {
+		if len(promptText) > cfg.Limits.Prompt.MaxChars {
+			// hard truncate with marker
+			limit := cfg.Limits.Prompt.MaxChars
+			if limit > 3 {
+				limit -= 3
+			}
+			promptText = promptText[:limit] + "..."
+		}
+	}
+	var commitMsg string
+	if forceFlag || !supportsStreaming(aiClient) {
+		var genErr error
+		commitMsg, genErr = generateCommitMessage(ctx, aiClient, promptText, commitTypeFlag, templateFlag, cfg.EnableEmoji)
+		if genErr != nil {
+			log.Error().Err(genErr).Msg("Commit message generation error")
+			os.Exit(1)
+		}
+	} else {
+		commitMsg = ""
+	}
 
 	var styleReviewSuggestions string
-    if reviewMessageFlag && commitMsg != "" {
-        suggestions, errReview := enforceCommitMessageStyle(ctx, aiClient, commitMsg, language, cfg.PromptTemplate)
-        if errReview != nil {
-            log.Error().Err(errReview).Msg("Commit message style enforcement failed")
-            os.Exit(1)
-        }
-        styleReviewSuggestions = suggestions
-    }
+	if reviewMessageFlag && commitMsg != "" {
+		suggestions, errReview := enforceCommitMessageStyle(ctx, aiClient, commitMsg, language, cfg.PromptTemplate)
+		if errReview != nil {
+			log.Error().Err(errReview).Msg("Commit message style enforcement failed")
+			os.Exit(1)
+		}
+		styleReviewSuggestions = suggestions
+	}
 
 	if forceFlag {
 		if reviewMessageFlag && strings.TrimSpace(styleReviewSuggestions) != "" &&
@@ -324,7 +328,7 @@ func runAICommit(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	runInteractiveUI(ctx, commitMsg, diff, promptText, styleReviewSuggestions, cfg.EnableEmoji, language, aiClient)
+	runInteractiveUI(ctx, commitMsg, diff, promptText, styleReviewSuggestions, cfg.EnableEmoji, language, aiClient, cfg.LockFiles)
 }
 
 func runAICodeReview(cmd *cobra.Command, args []string) {
@@ -341,7 +345,7 @@ func runAICodeReview(cmd *cobra.Command, args []string) {
 		language = "english"
 	}
 
-	diff, err := git.GetGitDiffIgnoringMoves(ctx)
+	diff, err := git.GetStagedDiff(ctx)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Git diff error")
 		return
@@ -351,22 +355,22 @@ func runAICodeReview(cmd *cobra.Command, args []string) {
 		return
 	}
 
-    // Optionally summarize/truncate diff for code review as well.
-    if cfg.Limits.Diff.Enabled && cfg.Limits.Diff.MaxChars > 0 {
-        if summarized, did := aiClient.MaybeSummarizeDiff(diff, cfg.Limits.Diff.MaxChars); did {
-            diff = summarized
-        }
-    }
-    reviewPrompt := prompt.BuildCodeReviewPrompt(diff, language, cfg.PromptTemplate)
-    if cfg.Limits.Prompt.Enabled && cfg.Limits.Prompt.MaxChars > 0 {
-        if len(reviewPrompt) > cfg.Limits.Prompt.MaxChars {
-            limit := cfg.Limits.Prompt.MaxChars
-            if limit > 3 {
-                limit -= 3
-            }
-            reviewPrompt = reviewPrompt[:limit] + "..."
-        }
-    }
+	// Optionally summarize/truncate diff for code review as well.
+	if cfg.Limits.Diff.Enabled && cfg.Limits.Diff.MaxChars > 0 {
+		if summarized, did := aiClient.MaybeSummarizeDiff(diff, cfg.Limits.Diff.MaxChars); did {
+			diff = summarized
+		}
+	}
+	reviewPrompt := prompt.BuildCodeReviewPrompt(diff, language, cfg.PromptTemplate)
+	if cfg.Limits.Prompt.Enabled && cfg.Limits.Prompt.MaxChars > 0 {
+		if len(reviewPrompt) > cfg.Limits.Prompt.MaxChars {
+			limit := cfg.Limits.Prompt.MaxChars
+			if limit > 3 {
+				limit -= 3
+			}
+			reviewPrompt = reviewPrompt[:limit] + "..."
+		}
+	}
 	reviewResult, err := aiClient.GetCommitMessage(ctx, reviewPrompt)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Code review generation error")
@@ -409,35 +413,38 @@ func runSummarizeCommand(setupAIEnvironment func() (context.Context, context.Can
 }
 
 func runInteractiveUI(
-    ctx context.Context,
-    commitMsg string,
-    diff string,
-    promptText string,
-    styleReviewSuggestions string,
-    enableEmoji bool,
-    language string,
-    aiClient ai.AIClient,
+	ctx context.Context,
+	commitMsg string,
+	diff string,
+	promptText string,
+	styleReviewSuggestions string,
+	enableEmoji bool,
+	language string,
+	aiClient ai.AIClient,
+	lockFiles []string,
 ) {
-    // Start with streaming if the client supports it and we have a prompt
-    startStreaming := false
-    if _, ok := aiClient.(ai.StreamingAIClient); ok && strings.TrimSpace(promptText) != "" {
-        startStreaming = true
-        // When streaming, start with empty commit message; the TUI will fill it in.
-        commitMsg = ""
-    }
+	// Start with streaming if the client supports it and we have a prompt
+	startStreaming := false
+	if _, ok := aiClient.(ai.StreamingAIClient); ok && strings.TrimSpace(promptText) != "" {
+		startStreaming = true
+		// When streaming, start with empty commit message; the TUI will fill it in.
+		commitMsg = ""
+	}
 
-    uiModel := ui.NewUIModel(
-        commitMsg,
-        diff,
-        language,
-        promptText,
-        commitTypeFlag,
-        templateFlag,
-        styleReviewSuggestions,
-        enableEmoji,
-        aiClient,
-        startStreaming,
-    )
+	uiModel := ui.NewUIModel(
+		commitMsg,
+		diff,
+		language,
+		promptText,
+		commitTypeFlag,
+		templateFlag,
+		styleReviewSuggestions,
+		enableEmoji,
+		aiClient,
+		startStreaming,
+		ctx,
+		lockFiles,
+	)
 	program := ui.NewProgram(uiModel)
 	if _, err := program.Run(); err != nil {
 		log.Fatal().Err(err).Msg("UI encountered an error")

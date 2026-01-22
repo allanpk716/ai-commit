@@ -9,50 +9,42 @@ import (
 )
 
 // DefaultPromptTemplate is used if no template is configured for commit message generation.
-const DefaultPromptTemplate = `Analyze the provided Git diff and generate a commit message following Conventional Commits format strictly.
+const DefaultPromptTemplate = `You are an expert software engineer.
+Analyze the provided ` + "`git diff`" + ` and generate a commit message following the **Conventional Commits** specification.
 
-### REQUIRED FORMAT:
-type(scope): description
+### 1. INPUT
+- **Diff Data**: See below.
+- **Target Language**: {LANGUAGE}
 
-- **type**: {COMMIT_TYPE_HINT}feat/fix/docs/style/refactor/test/chore/perf/build/ci
-- **scope** (optional): affected component/module
-- **description**: max 50 characters, imperative mood, no period
+### 2. RULES
+- **Intent**: Focus on *why* the change was made.
+- **Noise**: Ignore pure formatting changes or lockfiles unless specific intent exists.
+- **Types**: Keep standard types (feat, fix, chore, etc.) in English.
 
-### ANALYSIS RULES:
-1. **FOCUS ON FUNCTIONAL IMPACT**: ignore cosmetic changes (comments, spacing, formatting)
-2. **IDENTIFY INTENT**: what does this change solve/add/improve for the end user?
-3. **BE SPECIFIC**: prefer "fix user authentication timeout" over "fix bug"
-4. **PRIORITIZE BREAKING CHANGES**: if incompatible changes exist, use "BREAKING CHANGE:" in body
+### 3. OUTPUT FORMAT (Strictly Follow)
+You must generate the message in the structure below, using **{LANGUAGE}** for the description and body:
 
-### EXCLUSION FILTERS:
-- Changes in lock files (go.mod, package-lock.json, etc.)
-- Comment-only or inline documentation changes
-- Code reformatting without logical changes
-- Code block movement without functional alterations
+<type>(<scope>): <concise description in {LANGUAGE}>
 
-### OUTPUT STRUCTURE:
-**Line 1**: type(scope): description
-**Line 2**: [empty]
-**Lines 3+**: Key change details (if necessary)
-- Use bullet points for multiple changes
-- Explain "why" when not obvious
-- Include "BREAKING CHANGE:" if applicable
+[Optional Body in {LANGUAGE}, bullet points]
 
-### QUALITY EXAMPLES:
-✅ feat(auth): add OAuth2 Google integration
-✅ fix(api): resolve memory leak in request handler
-✅ refactor(db): extract connection pool to separate module
-❌ update files (too vague)
-❌ fix: fix bug in code (redundant)
-❌ feat: add some changes to the system (not specific)
+### 4. EXAMPLES (For format reference only - Translate your output to {LANGUAGE})
 
-{COMMIT_TYPE_HINT}
-Write the message in {LANGUAGE}.
+Input: (Logic change)
+Output: fix(auth): resolve nil pointer in token validation
+*(If Language is Chinese, you should output: fix(auth): 修复令牌验证中的空指针问题)*
+
+Input: (Ignore file)
+Output: chore(gitignore): ignore .DS_Store files
+
+---
+
+### 5. FINAL INSTRUCTION
+Analyze the diff below and write the commit message.
+**CRITICAL**: The <description> and <body> MUST be in **{LANGUAGE}**.
 
 ### DIFF TO ANALYZE:
-{DIFF}
-{ADDITIONAL_CONTEXT}
-`
+{DIFF}`
 
 // DefaultCodeReviewPromptTemplate is used for code review prompts.
 const DefaultCodeReviewPromptTemplate = `Review the following code diff for potential issues, and provide suggestions, following these rules:
