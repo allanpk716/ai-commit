@@ -3,3 +3,4 @@ config.yaml
 .trunk/**
 ai-commit
 *.exe
+docs/plans/
