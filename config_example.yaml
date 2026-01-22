@@ -56,7 +56,23 @@ commitType: ""
 template: ""
 
 # A default prompt seed. Typically built automatically from the staged diff, but you can add extra text here.
+# Deprecated: Use prompts.commitMessage instead
 promptTemplate: ""
+
+# Prompts configuration
+# 注意：
+#   1. 提示词文件存放在本配置文件同目录下的 prompts/ 子目录中
+#   2. 以下配置只填写文件名，不要填写路径
+#   3. 留空则使用内置默认提示词
+prompts:
+  # Commit message 生成提示词文件名
+  commitMessage: "commit-message.txt"
+
+  # Code review 提示词文件名
+  codeReview: "code-review.txt"
+
+  # Commit style review 提示词文件名
+  styleReview: "style-review.txt"
 
 commitTypes:
 - type: "feat"

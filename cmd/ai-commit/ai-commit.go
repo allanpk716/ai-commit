@@ -52,6 +52,9 @@ var (
 	providerFlag         string
 	modelFlag            string
 	reviewMessageFlag    bool
+	promptFileFlag       string
+	reviewPromptFileFlag string
+	stylePromptFileFlag  string
 )
 
 var rootCmd = &cobra.Command{
@@ -85,6 +88,9 @@ func init() {
 	rootCmd.Flags().StringVar(&providerFlag, "provider", "", "AI provider: openai, google, anthropic, deepseek, phind, ollama, openrouter")
 	rootCmd.Flags().StringVar(&modelFlag, "model", "", "Sub-model for the chosen provider")
 	rootCmd.Flags().BoolVar(&reviewMessageFlag, "review-message", false, "Review and enforce commit message style using AI")
+	rootCmd.Flags().StringVar(&promptFileFlag, "prompt-file", "", "Path to custom commit message prompt template file")
+	rootCmd.Flags().StringVar(&reviewPromptFileFlag, "review-prompt-file", "", "Path to custom code review prompt template file")
+	rootCmd.Flags().StringVar(&stylePromptFileFlag, "style-prompt-file", "", "Path to custom style review prompt template file")
 
 	rootCmd.AddCommand(newSummarizeCmd(setupAIEnvironment))
 	rootCmd.AddCommand(reviewCmd)
@@ -274,7 +280,24 @@ func runAICommit(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	promptText := prompt.BuildCommitPrompt(diff, language, commitTypeFlag, "", cfg.PromptTemplate)
+	// Resolve commit message prompt template
+	configDir, err := config.GetConfigDir()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to get config directory")
+		return
+	}
+	commitPromptTemplate, err := config.ResolvePrompt(
+		configDir,
+		cfg.Prompts.CommitMessage,
+		promptFileFlag,
+		prompt.DefaultPromptTemplate,
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to resolve commit prompt template")
+		return
+	}
+
+	promptText := prompt.BuildCommitPrompt(diff, language, commitTypeFlag, "", commitPromptTemplate)
 	if cfg.Limits.Prompt.Enabled && cfg.Limits.Prompt.MaxChars > 0 {
 		if len(promptText) > cfg.Limits.Prompt.MaxChars {
 			// hard truncate with marker
@@ -299,7 +322,18 @@ func runAICommit(cmd *cobra.Command, args []string) {
 
 	var styleReviewSuggestions string
 	if reviewMessageFlag && commitMsg != "" {
-		suggestions, errReview := enforceCommitMessageStyle(ctx, aiClient, commitMsg, language, cfg.PromptTemplate)
+		// Resolve style review prompt template
+		stylePromptTemplate, errStyle := config.ResolvePrompt(
+			configDir,
+			cfg.Prompts.StyleReview,
+			stylePromptFileFlag,
+			prompt.DefaultCommitStyleReviewPromptTemplate,
+		)
+		if errStyle != nil {
+			log.Error().Err(errStyle).Msg("Failed to resolve style review prompt template")
+			os.Exit(1)
+		}
+		suggestions, errReview := enforceCommitMessageStyle(ctx, aiClient, commitMsg, language, stylePromptTemplate)
 		if errReview != nil {
 			log.Error().Err(errReview).Msg("Commit message style enforcement failed")
 			os.Exit(1)
@@ -361,7 +395,25 @@ func runAICodeReview(cmd *cobra.Command, args []string) {
 			diff = summarized
 		}
 	}
-	reviewPrompt := prompt.BuildCodeReviewPrompt(diff, language, cfg.PromptTemplate)
+
+	// Resolve code review prompt template
+	configDir, err := config.GetConfigDir()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to get config directory")
+		return
+	}
+	reviewPromptTemplate, err := config.ResolvePrompt(
+		configDir,
+		cfg.Prompts.CodeReview,
+		reviewPromptFileFlag,
+		prompt.DefaultCodeReviewPromptTemplate,
+	)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to resolve code review prompt template")
+		return
+	}
+
+	reviewPrompt := prompt.BuildCodeReviewPrompt(diff, language, reviewPromptTemplate)
 	if cfg.Limits.Prompt.Enabled && cfg.Limits.Prompt.MaxChars > 0 {
 		if len(reviewPrompt) > cfg.Limits.Prompt.MaxChars {
 			limit := cfg.Limits.Prompt.MaxChars
