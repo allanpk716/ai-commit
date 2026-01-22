@@ -58,6 +58,8 @@ sudo mv ai-commit /usr/local/bin/
 * **Interactive split commits** (`--interactive-split`) with chunk selection/inversion.
 * **Emoji support** (`--emoji`) mapped to commit types.
 * **Custom templates** (`--template`) and **prompt template** (`promptTemplate` in config).
+* **File-based prompt customization** - edit prompt templates in `prompts/` directory.
+* **Language configuration** - set default language in config file or via CLI.
 * **Diff/prompt limits** to bound payload sizes.
 * **Lock file filtering** for cleaner AI context.
 
@@ -79,7 +81,8 @@ On first run, AI-Commit creates:
 authorName: "Your Name"
 authorEmail: "youremail@example.com"
 
-provider: "phind"        # default provider if no CLI flag is given
+language: "english"       # Language for commit messages and reviews (default: "english")
+provider: "phind"         # default provider if no CLI flag is given
 
 providers:
   phind:
@@ -125,7 +128,17 @@ enableEmoji: false
 
 commitType: ""           # Optional default
 template: ""             # Optional commit message template; can use {COMMIT_MESSAGE} and {GIT_BRANCH}
-promptTemplate: ""       # Optional global prompt template for AI prompts
+
+# Prompts configuration
+# Prompt files are stored in the prompts/ subdirectory alongside this config file
+# Only specify the filename, not the full path
+# Leave empty to use built-in default prompts
+prompts:
+  commitMessage: "commit-message.txt"    # Prompt for generating commit messages
+  codeReview: "code-review.txt"           # Prompt for code review
+  styleReview: "style-review.txt"         # Prompt for commit message style review
+
+promptTemplate: ""       # Deprecated: Use prompts.commitMessage instead
 
 commitTypes:
   - type: "feat"     emoji: "✨"
@@ -210,6 +223,9 @@ ai-commit summarize
 * `--commit-type` — force a Conventional Commit type (`feat`, `fix`, …)
 * `--template` — apply a template to the final message (supports `{COMMIT_MESSAGE}` and `{GIT_BRANCH}`)
 * `--review-message` — run AI style review on the generated commit message
+* `--prompt-file` — path to custom commit message prompt template file (overrides config)
+* `--review-prompt-file` — path to custom code review prompt template file (overrides config)
+* `--style-prompt-file` — path to custom style review prompt template file (overrides config)
 
 ### Workflow control
 
@@ -297,6 +313,88 @@ ai-commit --interactive-split
 
 ```bash
 ai-commit --semantic-release --manual-semver
+```
+
+**Using language from config**
+
+```bash
+# Set language in config.yaml, then simply run:
+ai-commit
+```
+
+**Using custom prompt file**
+
+```bash
+ai-commit --prompt-file /path/to/my-custom-prompt.txt
+```
+
+---
+
+## Custom Prompt Templates
+
+AI-Commit supports customizing the AI prompt templates for different operations. On first run, the tool automatically creates a `prompts/` directory alongside your `config.yaml` with default template files.
+
+### Directory Structure
+
+```
+~/.config/ai-commit/
+├── config.yaml
+└── prompts/
+    ├── commit-message.txt      # Commit message generation prompt
+    ├── code-review.txt         # Code review prompt
+    └── style-review.txt        # Commit style review prompt
+```
+
+### How It Works
+
+1. **Priority Order** (highest to lowest):
+   - CLI parameter (`--prompt-file`, `--review-prompt-file`, `--style-prompt-file`)
+   - Config file setting (`prompts.commitMessage`, `prompts.codeReview`, `prompts.styleReview`)
+   - Built-in default templates
+
+2. **Placeholders**:
+   - `{LANGUAGE}` - Replaced with the configured language
+   - `{DIFF}` - Replaced with the git diff
+   - `{COMMIT_MESSAGE}` - Replaced with the commit message (for style review)
+
+3. **Editing Templates**:
+   Simply edit the `.txt` files in the `prompts/` directory. Changes take effect immediately.
+
+### Example: Custom Commit Message Prompt
+
+Edit `~/.config/ai-commit/prompts/commit-message.txt`:
+
+```text
+You are a senior software engineer. Generate a concise commit message.
+
+Language: {LANGUAGE}
+
+Rules:
+- Use conventional commit format
+- Focus on WHY the change was made
+- Keep descriptions under 72 characters
+
+Diff:
+{DIFF}
+```
+
+### Example: Using CLI to Override Prompt
+
+```bash
+# Use a custom prompt file for this commit only
+ai-commit --prompt-file ~/my-prompts/detailed-prompt.txt
+
+# Use a custom code review prompt
+ai-commit review --review-prompt-file ~/my-prompts/security-review.txt
+```
+
+### Resetting to Defaults
+
+To reset a prompt template to the default, simply delete the corresponding file in `prompts/` and set the config entry to empty string:
+
+```yaml
+prompts:
+  commitMessage: ""  # Will use built-in default
 ```
 
 ---
