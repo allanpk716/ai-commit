@@ -1,3 +1,5 @@
 config.yaml
 .trunk
 .trunk/**
+ai-commit
+*.exe
